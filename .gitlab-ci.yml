@@ -23,7 +23,7 @@ workflow:
     - if: '$CI_PIPELINE_SOURCE == "web"'
       when: always
 
-webpack-build:
+pwa-build:
   stage: build
   image: docker.io/node:16
   cache:
