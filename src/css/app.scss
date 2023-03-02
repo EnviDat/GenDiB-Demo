@@ -1,0 +1,38 @@
+// app global css in SCSS form
+
+.minimap {
+  height: 25rem;
+  width: 100%;
+}
+
+.minimap .ol-attribution {
+  visibility: hidden;
+}
+
+#geolocation {
+  font-size: 50px !important;
+  background-color: red;
+  border-radius: 30px;
+}
+
+.sticky-virtscroll-table {
+  /* height or max-height is important */
+  height: 35rem;
+
+  .q-table__top,
+  .q-table__bottom,
+  thead tr:first-child th {
+    background-color: #fff;
+  }
+  thead tr th {
+    position: sticky;
+    z-index: 1;
+  } /* this will be the loading indicator */
+  thead tr:last-child th {
+    /* height of all previous header rows */
+    top: 48px;
+  }
+  thead tr:first-child th {
+    top: 0;
+  }
+}

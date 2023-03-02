@@ -1,0 +1,16 @@
+'404':
+  goHome: Torna alla pagina homepage
+  message: Oops! Pagina vuota
+header:
+  data: Dati
+  lang: Lingua
+  login: Connettersi
+  logout: Disconnettersi
+  map: Cartina
+map:
+  add: Segnala un'osservazione
+  failed: Questa pagina non può essere visualizzata.
+  loading: Visualizza
+  refresh: Attualizza
+  species: Specie
+  year: Anno

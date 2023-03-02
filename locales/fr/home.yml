@@ -1,0 +1,16 @@
+'404':
+  goHome: Retour à la page d'accueil
+  message: Oups. Rien ici
+header:
+  data: Analyse des données
+  lang: Langue
+  login: Se connecter
+  logout: Se déconnecter
+  map: Carte
+map:
+  add: Signaler une observation
+  failed: Cette page n'a pas pu être affichée.
+  loading: Afficher
+  refresh: Afficher à nouveau
+  species: Espèces
+  year: Année

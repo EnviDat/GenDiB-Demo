@@ -1,0 +1,16 @@
+'404':
+  goHome: Zur Homepage zurück
+  message: Ups. Hier ist nichts
+header:
+  data: Datenanalysen
+  lang: Sprache
+  login: Anmelden
+  map: Karte
+  profile: Profil anzeigen
+map:
+  add: Beobachtung melden
+  failed: Website konnte nicht abgerufen werden.
+  loading: Laden
+  refresh: Neu laden
+  species: Baumart
+  year: Jahr

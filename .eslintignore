@@ -1,0 +1,5 @@
+dist
+public
+.quasar
+node_modules
+.eslintrc.js

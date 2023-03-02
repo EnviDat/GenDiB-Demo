@@ -1,0 +1,16 @@
+'404':
+  goHome: Go Home
+  message: Oops. Nothing here
+header:
+  data: Data
+  lang: Language
+  login: Log In
+  map: Map
+  profile: View Profile
+map:
+  add: Add site
+  failed: Failed to get sites.
+  loading: Loading sites
+  refresh: Refresh
+  species: Species
+  year: Year
