@@ -55,4 +55,4 @@ pwa:upload:
   script:
     - >
       rclone --verbose sync
-      dist/pwa switch:gendib --exclude 'favicon.ico'
+      dist/pwa switch:gendib --exclude 'favicon.ico' --exclude '/data/'
