@@ -23,28 +23,29 @@ workflow:
     - if: '$CI_PIPELINE_SOURCE == "web"'
       when: always
 
-pwa-build:
+pwa:build:
   stage: build
   image: docker.io/node:16
   cache:
     key: dist
     paths:
-      - dist/pwa
+      - dist/
     policy: pull-push
   before_script:
     - npm install
   script:
     - npm run build
 
-rclone-sync:
+pwa:upload:
   stage: deploy
+  needs: ['pwa:build']
   image:
     name: docker.io/rclone/rclone
     entrypoint: ['']
   cache:
     key: dist
     paths:
-      - dist/pwa
+      - dist/
     policy: pull
   variables:
     GIT_STRATEGY: none
@@ -54,4 +55,4 @@ rclone-sync:
   script:
     - >
       rclone --verbose sync
-      dist switch:gendib --exclude 'favicon.ico'
+      dist/pwa switch:gendib --exclude 'favicon.ico'
