@@ -16,10 +16,49 @@
         </div>
       </div>
     </q-page-sticky>
+
+    <q-drawer
+      v-model="sidebarOpen"
+      side="left"
+      overlay
+      persistent
+      no-swipe-open
+      no-swipe-close
+      bordered
+      dark
+      class="bg-teal-8"
+      :width="270"
+      :breakpoint="500">
+      <q-scroll-area class="fit q-pr-md">
+        <q-list padding>
+          <q-item>
+            <q-item-label
+              class="text-weight-bolder text-accent"
+              header
+              overline
+              color="secondary"
+              >{{ t(`sidebar.filters`) }}</q-item-label
+            >
+          </q-item>
+        </q-list>
+      </q-scroll-area>
+
+      <div class="q-mini-drawer-hide absolute" style="top: 15px; right: -17px">
+        <q-btn
+          dense
+          round
+          unelevated
+          color="primary"
+          icon="chevron_left"
+          @click="sidebarOpen = false"
+          aria-label="Close Sidebar" />
+      </div>
+    </q-drawer>
   </q-page>
 </template>
 
 <script setup lang="ts">
+  import { onMounted, onBeforeUnmount } from 'vue'
   import { colors } from 'quasar'
   import { useI18n } from 'vue-i18n'
 
@@ -32,7 +71,7 @@
   const { getPaletteColor: quasarColor } = colors
   const { t } = useI18n()
   const generalStore = useGeneralStore()
-  const { baseMapUrl } = storeToRefs(generalStore)
+  const { baseMapUrl, useSidebar, sidebarOpen } = storeToRefs(generalStore)
 
   // Load test GeoJSON
   const sites = $ref([])
@@ -51,5 +90,13 @@
     }
 
     return sites.value
+  })
+
+  onMounted(() => {
+    useSidebar.value = true
+  })
+
+  onBeforeUnmount(() => {
+    useSidebar.value = false
   })
 </script>

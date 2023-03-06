@@ -14,3 +14,5 @@ map:
   refresh: Attualizza
   species: Specie
   year: Anno
+sidebar:
+  filters: Filtra
