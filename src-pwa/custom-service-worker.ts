@@ -13,8 +13,6 @@ import {
   createHandlerBoundToURL,
 } from 'workbox-precaching'
 import { registerRoute, NavigationRoute } from 'workbox-routing'
-import { NetworkOnly } from 'workbox-strategies'
-import { BackgroundSyncPlugin } from 'workbox-background-sync'
 
 self.skipWaiting()
 clientsClaim()
@@ -34,17 +32,4 @@ if (process.env.PROD) {
       })
     )
   }
-
-  // Background sync
-  const bgSyncPlugin = new BackgroundSyncPlugin('bgSyncQueue', {
-    maxRetentionTime: 24 * 60, // Retry for max of 24 Hours (in mins)
-  })
-  registerRoute(
-    // new RegExp('/*'),  // regex for all urls
-    `${process.env.APP_API_URL}/site`,
-    new NetworkOnly({
-      plugins: [bgSyncPlugin],
-    }),
-    'POST'
-  )
 }
