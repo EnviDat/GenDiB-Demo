@@ -13,3 +13,10 @@ export interface LabelValueMap {
   label: string
   value: number | string
 }
+
+export interface BboxObj {
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
+}

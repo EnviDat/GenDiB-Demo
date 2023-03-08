@@ -3,6 +3,7 @@
     <MapOpenLayers
       :base-map-url="baseMapUrl"
       :geo-json-array="filteredSites"
+      :fgb-file-array="['https://s3-zh.os.switch.ch/gendib/data/gendib_27-02-2023.fgb']"
       :primary-color="quasarColor('primary')"
       :secondary-color="quasarColor('secondary')"
       :accent-color="quasarColor('accent')" />

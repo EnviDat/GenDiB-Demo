@@ -27,8 +27,12 @@
   import { Circle as CircleStyle, Stroke, Fill, Text, Style } from 'ol/style'
   import type { StyleLike, StyleFunction } from 'ol/style/Style'
   import { asArray as asColorArray } from 'ol/color'
-  import Legend from 'ol-ext/legend/Legend'
-  import LegendControl from 'ol-ext/control/Legend'
+  // import Legend from 'ol-ext/legend/Legend'
+  // import LegendControl from 'ol-ext/control/Legend'
+
+  import { geojson as FGBGeoJson } from 'flatgeobuf'
+
+  import type { BboxObj } from '@/mappings'
 
   interface IdValueMap {
     [id: number]: string
@@ -37,6 +41,10 @@
   const props = defineProps({
     geoJsonArray: {
       type: Array as PropType<Array<GeoJSON>>,
+      default: () => [],
+    },
+    fgbFileArray: {
+      type: Array as PropType<Array<string>>,
       default: () => [],
     },
     clusterData: {
@@ -106,7 +114,7 @@
   let drawPolygonCoords: Array<number> | null = $ref<Array<number> | null>(null)
 
   const geoJsonArray = $toRef(props, 'geoJsonArray')
-  let mapDataLayers: Array<BaseLayer> = $ref<Array<VectorLayer<Cluster | VectorSource>>>()
+  const fgbFileArray = $toRef(props, 'fgbFileArray')
   const baseMapUrl = $toRef(props, 'baseMapUrl')
   const mapCenter = $toRef(props, 'mapCenter')
 
@@ -440,55 +448,111 @@
     return setupClusterStyle(clusterSource)
   }
 
-  function addGeoJsonLayers(geoJsons: Array<GeoJSONFeature>) {
-    let legendLayer: VectorLayer<Cluster | VectorSource>
-    if (geoJsons.length !== 0) {
-      if (props.clusterData) {
-        // Returns multiple layers: hulls, cluster groups, cluster points
-        mapDataLayers = getClusterFromGeoJSONFeatures(toRaw(geoJsons))
-        legendLayer = mapDataLayers[mapDataLayers.length - 1]
-      } else {
-        // TODO implement non-clustered layer
-        mapDataLayers = []
-        legendLayer = []
-      }
-
-      mapDataLayers.forEach((layer: VectorLayer<Cluster | VectorSource>) => {
-        map.addLayer(layer)
+  async function updateMapLayers() {
+    console.log('updating')
+    const layers = await mapDataLayers
+    console.log(layers)
+    // Re-add layers
+    if (layers.length !== 0) {
+      layers.forEach((layer: VectorLayer<Cluster | VectorSource>) => {
+        console.log('removing')
+        map.removeLayer(layer)
       })
 
-      // Add legend
-      if (props.legendIdNameMap && props.clusterMarkerColorMap) {
-        const legend = new Legend({
-          title: 'Legend',
-          margin: 5,
-          maxWidth: 300,
-          layer: legendLayer,
-        })
-        const legendCtl = new LegendControl({
-          legend: legend,
-          // collapsed: false,
-        })
-        map.addControl(legendCtl)
-        // Legend associated with cluster layer
-        for (const [id, name] of Object.entries(props.legendIdNameMap)) {
-          legend.addItem({
-            title: name,
-            typeGeom: 'Point',
-            style: new Style({
-              image: new CircleStyle({
-                radius: 10,
-                fill: new Fill({
-                  color: asColorArray(props.clusterMarkerColorMap[id]),
-                }),
-                stroke: new Stroke({ color: props.secondaryColor, width: 1 }),
-              }),
-            }),
-          })
-        }
-      }
+      layers.forEach((layer: VectorLayer<Cluster | VectorSource>) => {
+        console.log('adding')
+        map.addLayer(layer)
+        layer.getSource()?.refresh()
+      })
+
+      console.log(map.getLayers())
     }
   }
+
+  function fgbBoundingBox(): BboxObj {
+    let widthMeters = 500000
+    const minPoint = new Point(mapCenter)
+    minPoint.translate(widthMeters / -2, widthMeters / -2)
+    minPoint.transform('EPSG:3857', 'EPSG:4326')
+
+    const maxPoint = new Point(mapCenter)
+    maxPoint.translate(widthMeters / 2, widthMeters / 2)
+    maxPoint.transform('EPSG:3857', 'EPSG:4326')
+
+    return {
+      minX: minPoint.getCoordinates()[0],
+      minY: minPoint.getCoordinates()[1],
+      maxX: maxPoint.getCoordinates()[0],
+      maxY: maxPoint.getCoordinates()[1],
+    }
+  }
+
+  const mapDataLayers = $computed(async () => {
+    const newLayers: Array<VectorLayer<Cluster | VectorSource>> = []
+
+    console.log('mapDataLayers computed')
+
+    // Add initial GeoJSONs
+    if (props.clusterData && geoJsonArray.length !== 0) {
+      // Returns multiple layers: hulls, cluster groups, cluster points
+      newLayers.push(getClusterFromGeoJSONFeatures(toRaw(geoJsonArray)))
+    } else if (geoJsonArray.length !== 0) {
+      // Fix create non-clustered layers
+      newLayers.push(toRaw(geoJsonArray))
+    }
+
+    // fgbs
+    const fgbVectorSources: Array<VectorSource> = []
+
+    fgbFileArray
+      .filter((url: string) => {
+        return url.indexOf('.fgb') !== -1
+      })
+      .forEach((url: string, index: number) => {
+        const newSource = new VectorSource()
+        fgbVectorSources.push(newSource)
+        fgbVectorSources[index].setLoader(async function () {
+          let selection = FGBGeoJson.deserialize(url, fgbBoundingBox())
+          for await (let feature of selection) {
+            this.addFeature(new GeoJSON().readFeature(feature))
+          }
+        })
+      })
+
+    const fgb = new VectorLayer({
+      source: fgbVectorSources[0],
+      style: new Style({
+        image: new CircleStyle({
+          fill: new Fill({
+            color: 'rgba(255,255,255,0.4)',
+          }),
+          stroke: new Stroke({
+            color: '#3399CC',
+            width: 1.25,
+          }),
+          radius: 5,
+        }),
+      }),
+    })
+    newLayers.push(fgb)
+
+    // if (props.clusterData && decodedfgbs.length !== 0) {
+    //   newLayers.push(getClusterFromGeoJSONFeatures(toRaw(decodedfgbs)))
+    // } else if (decodedfgbs.length !== 0) {
+    //   // Fix create non-clustered layers
+    //   newLayers.push(decodedfgbs)
+    // }
+
+    return newLayers
+  })
+
+  watch(
+    () => mapDataLayers,
+    () => {
+      console.log('calling update layers from watcher')
+      updateMapLayers()
+    }
+  )
 
   onMounted(() => {
     map.setTarget(mapParentDiv)
@@ -529,20 +593,7 @@
         }),
       })
     )
-
-    addGeoJsonLayers(geoJsonArray)
-
-    watch(
-      () => geoJsonArray,
-      (geoJsonArray: Array<GeoJSON>) => {
-        // Remove layers prior to re-adding on change
-        if (mapDataLayers) {
-          mapDataLayers.forEach((layer: VectorLayer<Cluster | VectorSource>) => {
-            map.removeLayer(layer)
-          })
-        }
-        addGeoJsonLayers(geoJsonArray)
-      }
-    )
+    console.log('calling update layers from onMount')
+    updateMapLayers()
   })
 </script>
