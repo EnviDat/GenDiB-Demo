@@ -1,22 +1,35 @@
 <template>
-  <q-page class="column">
-    <MapOpenLayers
-      :base-map-url="baseMapUrl"
-      :geo-json-array="filteredSites"
-      :fgb-file-array="['https://s3-zh.os.switch.ch/gendib/data/gendib_27-02-2023.fgb']"
-      :primary-color="quasarColor('primary')"
-      :secondary-color="quasarColor('secondary')"
-      :accent-color="quasarColor('accent')" />
-
-    <q-page-sticky position="top-left" :offset="[20, 20]">
-      <div class="q-pa-none" style="width: 20rem">
-        <div class="row rounded-borders" style="background-color: white">
-          <div class="col-4">
-            <SelectFilter v-model="yearSelected" :options="yearOptions" :label="t(`map.year`)" />
-          </div>
-        </div>
+  <q-page>
+    <div class="absolute-full">
+      <div class="row" style="height: 65%; width: 100%">
+        <MapOpenLayers
+          :fill-div="true"
+          :base-map-url="baseMapUrl"
+          :geo-json-array="filteredData"
+          :geo-json-props="dataProps"
+          :include-cluster-hulls="false"
+          :cluster-zoom-on-click="false"
+          cluster-marker-color-param="species_kingdom"
+          :legend-id-name-map="speciesKingdomNameMap"
+          :cluster-marker-color-map="speciesKingdomColorMap"
+          :primary-color="quasarColor('primary')"
+          :secondary-color="quasarColor('secondary')"
+          :accent-color="quasarColor('accent')" />
       </div>
-    </q-page-sticky>
+
+      <div class="row" style="height: 35%; width: 100%">
+        <q-card bordered style="height: 35%; width: 100%">
+          <DataTable
+            :data="tableData"
+            @row-selected="
+              (row) => {
+                dataRowSelected = row
+              }
+            "
+            :export-selection-label="t(`table.export`)" />
+        </q-card>
+      </div>
+    </div>
 
     <q-drawer
       v-model="sidebarOpen"
@@ -41,6 +54,12 @@
               >{{ t(`sidebar.filters`) }}</q-item-label
             >
           </q-item>
+
+          <q-item v-for="(options, key) in filterOptions" :key="key">
+            <div class="col-12">
+              <SelectFilter v-model="filterSelections[key]" :options="options" :label="key" />
+            </div>
+          </q-item>
         </q-list>
       </q-scroll-area>
 
@@ -59,14 +78,18 @@
 </template>
 
 <script setup lang="ts">
-  import { onMounted, onBeforeUnmount } from 'vue'
+  import { onMounted, onBeforeMount, onBeforeUnmount, watch } from 'vue'
   import { colors } from 'quasar'
   import { useI18n } from 'vue-i18n'
 
   import { storeToRefs } from 'pinia'
   import { useGeneralStore } from '@/stores/general'
 
+  import type { GeoJSONFeature } from 'ol/format/GeoJSON'
+
+  import { KeyValuePair, FieldOptions } from '@/mappings'
   import MapOpenLayers from '@/components/MapOpenLayers.vue'
+  import DataTable from '@/components/DataTable.vue'
   import SelectFilter from '@/components/SelectFilter.vue'
 
   const { getPaletteColor: quasarColor } = colors
@@ -74,27 +97,127 @@
   const generalStore = useGeneralStore()
   const { baseMapUrl, useSidebar, sidebarOpen } = storeToRefs(generalStore)
 
-  // Load test GeoJSON
-  const sites = $ref([])
-  // Load the geojson properties, and generate filter parameters based on keys
-  // Then generate filter options based on key values
-  // Use v-for the V-Selects ? (or configure this with a checkboxes for which one in the sidebar)
+  let data = $ref<Array<GeoJSONFeature>>([])
+  const dataProps = $computed(() => {
+    if (data.length !== 0) {
+      const includeKeys = new Set([
+        'gendib_pop_id',
+        'species_kingdom',
+        'latitude_WGS84_Dec',
+        'latitude_original',
+        'longitude_WGS84_Dec',
+        'longitude_original',
+      ])
+      return Object.keys(data[0].properties).filter((field) => includeKeys.has(field))
+    }
+  })
+  let filterSelections = $ref<KeyValuePair>({})
+  let filterOptions = $ref<FieldOptions>({})
 
-  const yearSelected = $ref<string>()
-  const yearOptions = ([''] as Array<string>).concat(
-    Array.from(Array(new Date().getFullYear() - 1990), (_, i) => (i + 1991).toString()).reverse()
+  watch(
+    () => data,
+    () => {
+      if (data.length === 0) {
+        return
+      }
+
+      const excludeKeys = new Set([
+        'gendib_pop_id',
+        'latitude_WGS84_Dec',
+        'latitude_original',
+        'longitude_WGS84_Dec',
+        'longitude_original',
+        'sample_denominator',
+      ])
+
+      filterSelections = Object.keys(data[0].properties).reduce(
+        (newObj: KeyValuePair, field: string) => {
+          if (!excludeKeys.has(field)) {
+            newObj[field] = ''
+          }
+          return newObj
+        },
+        {}
+      )
+
+      const filterSets = data
+        .map(({ properties }) => properties)
+        .reduce((uniqueValues, properties) => {
+          for (const key in properties) {
+            if (excludeKeys.has(key)) {
+              continue
+            }
+            if (!(key in uniqueValues)) {
+              uniqueValues[key] = new Set([''])
+            }
+            uniqueValues[key].add(properties[key])
+          }
+          return uniqueValues
+        }, {})
+
+      filterOptions = Object.keys(filterSets).reduce((newObj: FieldOptions, field: string) => {
+        newObj[field] = [...filterSets[field]]
+        return newObj
+      }, {})
+    }
   )
 
-  const filteredSites = $computed(() => {
-    if (yearSelected) {
-      return sites.value.filter((x) => x.properties.mastYear === parseInt(yearSelected))
+  const filteredData = $computed(() => {
+    if (Object.values(filterSelections).every((v) => v === '')) {
+      return data
     }
 
-    return sites.value
+    const activeFilters = Object.keys(filterSelections).filter(
+      (key) => filterSelections[key] !== ''
+    )
+
+    return activeFilters.reduce((acc, field) => {
+      const filterValue = filterSelections[field]
+      return acc.filter((geoJson) => geoJson.properties[field] === filterValue)
+    }, data)
   })
+
+  const tableData = $computed(() => {
+    // Extract properties from GeoJSON
+    return filteredData.map((x: GeoJSONFeature) => ({
+      ...x.properties,
+    }))
+  })
+
+  const dataRowSelected = $ref(null)
+  watch(
+    () => dataRowSelected,
+    () => {
+      console.log(dataRowSelected)
+    }
+  )
+
+  const speciesKingdomColorMap = {
+    unknown: quasarColor('blue-grey'),
+    plant: quasarColor('lime-5'),
+    protista: quasarColor('deep-orange-3'),
+    vertebrate: quasarColor('yellow-8'),
+    fungi: quasarColor('brown-4'),
+    invertebrate: quasarColor('orange-10'),
+  }
+  const speciesKingdomNameMap = {
+    unknown: 'Unknown',
+    plant: 'Plant',
+    protista: 'Protista',
+    vertebrate: 'Vertebrate',
+    fungi: 'Fungi',
+    invertebrate: 'Invertebrate',
+  }
 
   onMounted(() => {
     useSidebar.value = true
+  })
+
+  onBeforeMount(async () => {
+    // Load test GeoJSON
+    const response = await fetch('./test_data/gendib_27_02_2023.geojson')
+    const gendibFeatureCol = await response.json()
+    data = gendibFeatureCol.features
   })
 
   onBeforeUnmount(() => {

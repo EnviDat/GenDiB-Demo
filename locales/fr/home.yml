@@ -16,3 +16,5 @@ map:
   year: Année
 sidebar:
   filters: Filtrer
+table:
+  export: Exporter la sélection

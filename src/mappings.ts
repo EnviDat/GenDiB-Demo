@@ -5,18 +5,15 @@ export interface QSelectOptionsField {
   id: number
 }
 
-export interface IdValueMap {
-  [id: number]: string
+export interface KeyValuePair {
+  [key: string]: string
+}
+
+export interface FieldOptions {
+  [key: string]: Array<string>
 }
 
 export interface LabelValueMap {
   label: string
   value: number | string
-}
-
-export interface BboxObj {
-  minX: number
-  minY: number
-  maxX: number
-  maxY: number
 }
