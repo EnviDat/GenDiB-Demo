@@ -6,12 +6,19 @@
           :fill-div="true"
           :base-map-url="baseMapUrl"
           :geo-json-array="filteredData"
-          :geo-json-props="dataProps"
-          :include-cluster-hulls="false"
-          :cluster-zoom-on-click="false"
-          cluster-marker-color-param="species_kingdom"
+          :draw-enabled="mapDrawEnabled"
+          @draw-shape="
+            (shape: Array<number> | null) => {
+              filterPolygon = shape
+            }
+          "
+          @legend-item-selected="
+            (selection: string) => {
+              filterSelections['species_kingdom'] = selection
+            }
+          "
           :legend-id-name-map="speciesKingdomNameMap"
-          :cluster-marker-color-map="speciesKingdomColorMap"
+          :legend-marker-symbol-map="speciesKingdomSymbolMap"
           :primary-color="quasarColor('primary')"
           :secondary-color="quasarColor('secondary')"
           :accent-color="quasarColor('accent')" />
@@ -31,54 +38,33 @@
       </div>
     </div>
 
-    <q-drawer
-      v-model="sidebarOpen"
-      side="left"
-      overlay
-      persistent
-      no-swipe-open
-      no-swipe-close
-      bordered
-      dark
-      class="bg-teal-8"
-      :width="270"
-      :breakpoint="500">
-      <q-scroll-area class="fit q-pr-md">
-        <q-list padding>
-          <q-item>
-            <q-item-label
-              class="text-weight-bolder text-accent"
-              header
-              overline
-              color="secondary"
-              >{{ t(`sidebar.filters`) }}</q-item-label
-            >
-          </q-item>
-
-          <q-item v-for="(options, key) in filterOptions" :key="key">
-            <div class="col-12">
-              <SelectFilter v-model="filterSelections[key]" :options="options" :label="key" />
-            </div>
-          </q-item>
-        </q-list>
-      </q-scroll-area>
-
-      <div class="q-mini-drawer-hide absolute" style="top: 15px; right: -17px">
-        <q-btn
-          dense
-          round
-          unelevated
-          color="primary"
-          icon="chevron_left"
-          @click="sidebarOpen = false"
-          aria-label="Close Sidebar" />
+    <q-page-sticky position="top-left" :offset="[20, 20]">
+      <div class="q-pa-none" style="width: 30rem">
+        <div class="row rounded-borders" style="background-color: white">
+          <div class="col-5" v-for="(options, key) in filterOptions" :key="key">
+            <SelectFilter
+              v-model="filterSelections[key]"
+              :options="options"
+              :label="key.replace('_', ' ').replace(/\b\w/g, (s: string) => s.toUpperCase())" />
+          </div>
+          <div class="col-2 flex justify-center">
+            <q-btn
+              class="fit"
+              flat
+              dense
+              padding=".5rem"
+              icon="polyline"
+              @click="mapDrawEnabled = !mapDrawEnabled"
+              @update:model-value="filterPolygon = null" />
+          </div>
+        </div>
       </div>
-    </q-drawer>
+    </q-page-sticky>
   </q-page>
 </template>
 
 <script setup lang="ts">
-  import { onMounted, onBeforeMount, onBeforeUnmount, watch } from 'vue'
+  import { onBeforeMount, watch } from 'vue'
   import { colors } from 'quasar'
   import { useI18n } from 'vue-i18n'
 
@@ -86,6 +72,7 @@
   import { useGeneralStore } from '@/stores/general'
 
   import type { GeoJSONFeature } from 'ol/format/GeoJSON'
+  import { Polygon } from 'ol/geom'
 
   import { KeyValuePair, FieldOptions } from '@/mappings'
   import MapOpenLayers from '@/components/MapOpenLayers.vue'
@@ -95,23 +82,16 @@
   const { getPaletteColor: quasarColor } = colors
   const { t } = useI18n()
   const generalStore = useGeneralStore()
-  const { baseMapUrl, useSidebar, sidebarOpen } = storeToRefs(generalStore)
+  const { baseMapUrl } = storeToRefs(generalStore)
+
+  const mapDrawEnabled = $ref<boolean>(false)
+  const filterPolygon = $ref<Array<number> | null>()
 
   let data = $ref<Array<GeoJSONFeature>>([])
-  const dataProps = $computed(() => {
-    if (data.length !== 0) {
-      const includeKeys = new Set([
-        'gendib_pop_id',
-        'species_kingdom',
-        'latitude_WGS84_Dec',
-        'latitude_original',
-        'longitude_WGS84_Dec',
-        'longitude_original',
-      ])
-      return Object.keys(data[0].properties).filter((field) => includeKeys.has(field))
-    }
+  const filterSelections = $ref<KeyValuePair>({
+    species_kingdom: '',
+    marker_types: '',
   })
-  let filterSelections = $ref<KeyValuePair>({})
   let filterOptions = $ref<FieldOptions>({})
 
   watch(
@@ -121,60 +101,34 @@
         return
       }
 
-      const excludeKeys = new Set([
-        'gendib_pop_id',
-        'latitude_WGS84_Dec',
-        'latitude_original',
-        'longitude_WGS84_Dec',
-        'longitude_original',
-        'sample_denominator',
-      ])
-
-      filterSelections = Object.keys(data[0].properties).reduce(
-        (newObj: KeyValuePair, field: string) => {
-          if (!excludeKeys.has(field)) {
-            newObj[field] = ''
-          }
-          return newObj
-        },
-        {}
-      )
-
-      const filterSets = data
-        .map(({ properties }) => properties)
-        .reduce((uniqueValues, properties) => {
-          for (const key in properties) {
-            if (excludeKeys.has(key)) {
-              continue
-            }
-            if (!(key in uniqueValues)) {
-              uniqueValues[key] = new Set([''])
-            }
-            uniqueValues[key].add(properties[key])
-          }
-          return uniqueValues
-        }, {})
-
-      filterOptions = Object.keys(filterSets).reduce((newObj: FieldOptions, field: string) => {
-        newObj[field] = [...filterSets[field]]
-        return newObj
-      }, {})
+      filterOptions = {
+        species_kingdom: Array.from(
+          new Set(['', 'plant', 'protista', 'vertebrate', 'fungi', 'invertebrate'])
+        ),
+        marker_types: [''].concat(
+          Array.from(new Set(data.map(({ properties }) => properties.marker_types)))
+        ),
+      }
     }
   )
 
   const filteredData = $computed(() => {
-    if (Object.values(filterSelections).every((v) => v === '')) {
-      return data
+    const olPolygon = filterPolygon ? new Polygon(filterPolygon) : null
+    const geospatialFilter = (x: GeoJSONFeature) => {
+      return !olPolygon || olPolygon.intersectsCoordinate(x.geometry.coordinates)
     }
 
-    const activeFilters = Object.keys(filterSelections).filter(
-      (key) => filterSelections[key] !== ''
-    )
+    const kingdomFilter = (x: GeoJSONFeature) => {
+      const kingdom = filterSelections['species_kingdom']
+      return !kingdom || x.properties.species_kingdom === kingdom
+    }
 
-    return activeFilters.reduce((acc, field) => {
-      const filterValue = filterSelections[field]
-      return acc.filter((geoJson) => geoJson.properties[field] === filterValue)
-    }, data)
+    const markerTypesFilter = (x: GeoJSONFeature) => {
+      const markerTypes = filterSelections['marker_types']
+      return !markerTypes || x.properties.marker_types === markerTypes
+    }
+
+    return data.filter((x) => geospatialFilter(x) && kingdomFilter(x) && markerTypesFilter(x))
   })
 
   const tableData = $computed(() => {
@@ -192,16 +146,29 @@
     }
   )
 
-  const speciesKingdomColorMap = {
-    unknown: quasarColor('blue-grey'),
-    plant: quasarColor('lime-5'),
-    protista: quasarColor('deep-orange-3'),
-    vertebrate: quasarColor('yellow-8'),
-    fungi: quasarColor('brown-4'),
-    invertebrate: quasarColor('orange-10'),
+  const speciesKingdomSymbolMap = {
+    plant: {
+      symbol: 'circle',
+      color: '#01a425',
+    },
+    protista: {
+      symbol: 'circle',
+      color: '#ffdd00',
+    },
+    vertebrate: {
+      symbol: 'circle',
+      color: '#0c0ceb',
+    },
+    fungi: {
+      symbol: 'circle',
+      color: '#a700a2',
+    },
+    invertebrate: {
+      symbol: 'circle',
+      color: '#47dae7',
+    },
   }
   const speciesKingdomNameMap = {
-    unknown: 'Unknown',
     plant: 'Plant',
     protista: 'Protista',
     vertebrate: 'Vertebrate',
@@ -209,18 +176,10 @@
     invertebrate: 'Invertebrate',
   }
 
-  onMounted(() => {
-    useSidebar.value = true
-  })
-
   onBeforeMount(async () => {
     // Load test GeoJSON
-    const response = await fetch('./test_data/gendib_27_02_2023.geojson')
+    const response = await fetch('https://s3-zh.os.switch.ch/gendib/data/gendib-27-03-2023.geojson')
     const gendibFeatureCol = await response.json()
     data = gendibFeatureCol.features
-  })
-
-  onBeforeUnmount(() => {
-    useSidebar.value = false
   })
 </script>

@@ -5,16 +5,6 @@
   width: 100%;
 }
 
-.minimap .ol-attribution {
-  visibility: hidden;
-}
-
-#geolocation {
-  font-size: 50px !important;
-  background-color: red;
-  border-radius: 30px;
-}
-
 .sticky-virtscroll-table {
   /* height or max-height is important */
   height: 35rem;
@@ -37,6 +27,19 @@
   }
 }
 
+// Legend
+.ol-control.ol-legend {
+  bottom: 0.5em;
+  left: 0.5em;
+  z-index: 1;
+  max-height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+// Popup
 .ol-popup {
   position: absolute;
   background-color: white;

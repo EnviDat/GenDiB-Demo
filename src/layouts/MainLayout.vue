@@ -6,16 +6,6 @@
           <img :src="appIcon" alt="" />
         </q-avatar>
 
-        <q-page-sticky v-if="useSidebar" position="top-left" :offset="[55, -43]">
-          <q-btn
-            v-if="useSidebar"
-            flat
-            icon="menu"
-            color="secondary"
-            @click="sidebarOpen = !sidebarOpen"
-            aria-label="Open Sidebar" />
-        </q-page-sticky>
-
         <q-space />
 
         <div class="q-gutter-sm row items-center no-wrap">
@@ -66,7 +56,7 @@
   const localeOptions = availableLocales.map((x) => ({ label: x, value: x }))
 
   const generalStore = useGeneralStore()
-  const { currentLocale, sidebarOpen, useSidebar } = storeToRefs(generalStore)
+  const { currentLocale } = storeToRefs(generalStore)
 
   function setLocale(localeString: string) {
     // Set quasar component language and user store value
