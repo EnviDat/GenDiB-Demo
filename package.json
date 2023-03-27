@@ -19,7 +19,6 @@
     "@capacitor/app": "^4.1.1",
     "@capacitor/browser": "^4.1.1",
     "@capacitor/core": "^4.6.2",
-    "@capacitor/geolocation": "^4.1.0",
     "@quasar/extras": "^1.15.10",
     "@vueuse/core": "^9.11.1",
     "flatgeobuf": "^3.24.1",
