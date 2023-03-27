@@ -1,8 +1,8 @@
 {
-  "name": "envidat-geo",
+  "name": "gendib",
   "version": "0.1.0",
-  "description": "Geospatial module to accompany EnviDat-Frontend.",
-  "productName": "EnviDat Geo",
+  "description": "GenDiB Map Demo.",
+  "productName": "GenDiB",
   "author": "Sam <samuel.woodcock@wsl.ch>",
   "private": true,
   "scripts": {

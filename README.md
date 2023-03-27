@@ -1,3 +1,3 @@
-# EnviDat Geo
+# GenDiB Demo
 
-Geospatial module to accompany EnviDat-Frontend.
+Demo geospatial module for the GenDiB project.
