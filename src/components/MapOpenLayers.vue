@@ -332,9 +332,6 @@
       map.addControl(legendCtl)
       // Legend associated with geojson layer
       for (const [kingdom_name, title] of Object.entries(props.legendIdNameMap)) {
-        console.log(kingdom_name)
-        console.log(speciesKingdomShapes(kingdom_name))
-        console.log(asColorArray(props.primaryColor))
         const markerShape = speciesKingdomShapes(kingdom_name)
         legend.addItem({
           title: title,
