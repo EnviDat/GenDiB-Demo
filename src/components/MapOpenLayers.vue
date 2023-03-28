@@ -32,7 +32,7 @@
   import GeoJSON from 'ol/format/GeoJSON'
   import type { GeoJSONFeature } from 'ol/format/GeoJSON'
   import type { Type as GeomType } from 'ol/geom/Geometry'
-  import { Circle as CircleStyle, Stroke, Fill, Style } from 'ol/style'
+  import { RegularShape, Circle as CircleStyle, Stroke, Fill, Style } from 'ol/style'
   import { asArray as asColorArray } from 'ol/color'
   import Overlay from 'ol/Overlay'
   import Legend from 'ol-ext/legend/Legend'
@@ -156,33 +156,69 @@
     drawPolygonCoords = null
   }
 
-  function speciesKingdomStyle(kingdom: string): Style {
-    let fillColor = props.primaryColor
-    if (props.legendMarkerSymbolMap) {
-      if (kingdom) {
-        fillColor = props.legendMarkerSymbolMap[kingdom].color
-      }
-    }
+  const shapeStyles = {
+    circle1: new CircleStyle({
+      radius: 10,
+      fill: new Fill({
+        color: asColorArray(props.primaryColor),
+      }),
+      stroke: new Stroke({ color: props.secondaryColor, width: 1 }),
+    }),
+    circle2: new CircleStyle({
+      radius: 10,
+      fill: new Fill({
+        color: asColorArray(props.primaryColor),
+      }),
+      stroke: new Stroke({ color: props.secondaryColor, width: 1 }),
+    }),
+    square: new RegularShape({
+      fill: new Fill({
+        color: asColorArray(props.primaryColor),
+      }),
+      stroke: new Stroke({ color: props.secondaryColor, width: 1 }),
+      points: 4,
+      radius: 10,
+      angle: Math.PI / 4,
+    }),
+    triangle: new RegularShape({
+      fill: new Fill({
+        color: asColorArray(props.primaryColor),
+      }),
+      stroke: new Stroke({ color: props.secondaryColor, width: 1 }),
+      points: 3,
+      radius: 10,
+      rotation: Math.PI / 4,
+      angle: 0,
+    }),
+    diamond: new RegularShape({
+      fill: new Fill({
+        color: asColorArray(props.primaryColor),
+      }),
+      stroke: new Stroke({ color: props.secondaryColor, width: 1 }),
+      points: 4,
+      // radius: 10,
+      radius1: 10,
+      radius2: 6,
+      // angle: Math.PI / 4,
+      // rotation: 0.785,
+    }),
+  }
 
-    const symbolType = props.legendMarkerSymbolMap[kingdom].symbol
-
-    if (symbolType === 'triangle') {
-      return new Style({})
-    } else {
-      return new CircleStyle({
-        radius: 10,
-        fill: new Fill({
-          color: asColorArray(fillColor),
-        }),
-        stroke: new Stroke({ color: props.secondaryColor, width: 1 }),
+  function speciesKingdomShapes(kingdom: string): Style {
+    const shape = shapeStyles[props.legendMarkerSymbolMap[kingdom].symbol]
+    shape.setFill(
+      new Fill({
+        color: asColorArray(props.legendMarkerSymbolMap[kingdom].color),
       })
-    }
+    )
+
+    return shape
   }
 
   function speciesKingdomStyleFunc(marker: Feature): Style {
     return new Style({
       geometry: marker.getGeometry(),
-      image: speciesKingdomStyle(marker.get('species_kingdom')),
+      image: speciesKingdomShapes(marker.get('species_kingdom')),
     })
   }
 
@@ -193,17 +229,17 @@
         popupContent.innerHTML = null
         const geoJsonProps = features[0].getProperties()
 
-        for (const field of ['species_kingdom', 'marker_types']) {
+        for (const field of ['species_scientific', 'species_kingdom', 'marker_types']) {
           const titleCaseField = field
-            .replace('_', ' ')
-            .replace(/\b\w/g, (s: string) => s.toUpperCase())
+            .replaceAll('_', ' ')
+            .replaceAll(/\b\w/g, (s: string) => s.toUpperCase())
           popupContent.innerHTML += `<p><b>${titleCaseField}</b>: ${geoJsonProps[field]}</p>`
         }
         // DOIs
         for (const field of ['article_doi', 'data_doi']) {
           const titleCaseField = field
-            .replace('_', ' ')
-            .replace(/\b\w/g, (s: string) => s.toUpperCase())
+            .replaceAll('_', ' ')
+            .replaceAll(/\b\w/g, (s: string) => s.toUpperCase())
           const value = geoJsonProps[field]
           if (value !== 'NA') {
             popupContent.innerHTML += `<p><b>${titleCaseField}</b>: <a target="_blank" href="https://doi.org/${value}">Link</a></p>`
@@ -295,13 +331,16 @@
 
       map.addControl(legendCtl)
       // Legend associated with geojson layer
-      for (const [kingdom_id, name] of Object.entries(props.legendIdNameMap)) {
-        const markerStyle = speciesKingdomStyle(kingdom_id)
+      for (const [kingdom_name, title] of Object.entries(props.legendIdNameMap)) {
+        console.log(kingdom_name)
+        console.log(speciesKingdomShapes(kingdom_name))
+        console.log(asColorArray(props.primaryColor))
+        const markerShape = speciesKingdomShapes(kingdom_name)
         legend.addItem({
-          title: name,
+          title: title,
           typeGeom: 'Point',
           style: new Style({
-            image: markerStyle,
+            image: markerShape,
           }),
         })
       }

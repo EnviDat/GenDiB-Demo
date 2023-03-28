@@ -39,15 +39,9 @@
     </div>
 
     <q-page-sticky position="top-left" :offset="[20, 20]">
-      <div class="q-pa-none" style="width: 30rem">
+      <div class="q-pa-none" style="width: 80vw">
         <div class="row rounded-borders" style="background-color: white">
-          <div class="col-5" v-for="(options, key) in filterOptions" :key="key">
-            <SelectFilter
-              v-model="filterSelections[key]"
-              :options="options"
-              :label="key.replace('_', ' ').replace(/\b\w/g, (s: string) => s.toUpperCase())" />
-          </div>
-          <div class="col-2 flex justify-center">
+          <div class="col-1 flex justify-center">
             <q-btn
               class="fit"
               flat
@@ -56,6 +50,12 @@
               icon="polyline"
               @click="mapDrawEnabled = !mapDrawEnabled"
               @update:model-value="filterPolygon = null" />
+          </div>
+          <div class="col" v-for="(options, key) in filterOptions" :key="key">
+            <SelectFilter
+              v-model="filterSelections[key]"
+              :options="options"
+              :label="key.replaceAll('_', ' ').replaceAll(/\b\w/g, (s: string) => s.toUpperCase())" />
           </div>
         </div>
       </div>
@@ -90,7 +90,9 @@
   let data = $ref<Array<GeoJSONFeature>>([])
   const filterSelections = $ref<KeyValuePair>({
     species_kingdom: '',
+    species_scientific: '',
     marker_types: '',
+    data_set_published: '',
   })
   let filterOptions = $ref<FieldOptions>({})
 
@@ -105,8 +107,14 @@
         species_kingdom: Array.from(
           new Set(['', 'plant', 'protista', 'vertebrate', 'fungi', 'invertebrate'])
         ),
+        species_scientific: [''].concat(
+          Array.from(new Set(data.map(({ properties }) => properties.species_scientific)))
+        ),
         marker_types: [''].concat(
           Array.from(new Set(data.map(({ properties }) => properties.marker_types)))
+        ),
+        data_set_published: [''].concat(
+          Array.from(new Set(data.map(({ properties }) => properties.data_set_published)))
         ),
       }
     }
@@ -123,12 +131,29 @@
       return !kingdom || x.properties.species_kingdom === kingdom
     }
 
+    const scientificFilter = (x: GeoJSONFeature) => {
+      const scientificName = filterSelections['species_scientific']
+      return !scientificName || x.properties.species_scientific === scientificName
+    }
+
     const markerTypesFilter = (x: GeoJSONFeature) => {
       const markerTypes = filterSelections['marker_types']
       return !markerTypes || x.properties.marker_types === markerTypes
     }
 
-    return data.filter((x) => geospatialFilter(x) && kingdomFilter(x) && markerTypesFilter(x))
+    const publishedFilter = (x: GeoJSONFeature) => {
+      const datePublished = filterSelections['data_set_published']
+      return !datePublished || x.properties.data_set_published === datePublished
+    }
+
+    return data.filter(
+      (x) =>
+        geospatialFilter(x) &&
+        kingdomFilter(x) &&
+        scientificFilter(x) &&
+        markerTypesFilter(x) &&
+        publishedFilter(x)
+    )
   })
 
   const tableData = $computed(() => {
@@ -148,23 +173,23 @@
 
   const speciesKingdomSymbolMap = {
     plant: {
-      symbol: 'circle',
+      symbol: 'circle1',
       color: '#01a425',
     },
     protista: {
-      symbol: 'circle',
+      symbol: 'circle2',
       color: '#ffdd00',
     },
     vertebrate: {
-      symbol: 'circle',
+      symbol: 'square',
       color: '#0c0ceb',
     },
     fungi: {
-      symbol: 'circle',
+      symbol: 'triangle',
       color: '#a700a2',
     },
     invertebrate: {
-      symbol: 'circle',
+      symbol: 'diamond',
       color: '#47dae7',
     },
   }
@@ -178,7 +203,7 @@
 
   onBeforeMount(async () => {
     // Load test GeoJSON
-    const response = await fetch('https://s3-zh.os.switch.ch/gendib/data/gendib-27-03-2023.geojson')
+    const response = await fetch('https://s3-zh.os.switch.ch/gendib/data/gendib.geojson')
     const gendibFeatureCol = await response.json()
     data = gendibFeatureCol.features
   })
