@@ -12,6 +12,14 @@
     style="background-color: rgba(255, 255, 255, 0.6)">
     <div ref="gendibLegend"></div>
   </q-page-sticky>
+
+  <q-page-sticky position="bottom-left" :offset="[0, 150]">
+    <q-btn icon="add" color="primary" @click="zoomMap(1)" aria-label="Zoom In" />
+  </q-page-sticky>
+
+  <q-page-sticky position="bottom-left" :offset="[0, 100]">
+    <q-btn icon="remove" color="primary" @click="zoomMap(-1)" aria-label="Zoom Out" />
+  </q-page-sticky>
 </template>
 
 <script setup lang="ts">
@@ -157,19 +165,22 @@
   }
 
   const shapeStyles = {
-    circle1: new CircleStyle({
+    circle: new CircleStyle({
       radius: 10,
       fill: new Fill({
         color: asColorArray(props.primaryColor),
       }),
       stroke: new Stroke({ color: props.secondaryColor, width: 1 }),
     }),
-    circle2: new CircleStyle({
-      radius: 10,
+    cross: new RegularShape({
       fill: new Fill({
         color: asColorArray(props.primaryColor),
       }),
-      stroke: new Stroke({ color: props.secondaryColor, width: 1 }),
+      stroke: new Stroke({ color: asColorArray(props.primaryColor), width: 4 }),
+      points: 4,
+      radius: 10,
+      radius2: 0,
+      angle: Math.PI / 4,
     }),
     square: new RegularShape({
       fill: new Fill({
@@ -211,6 +222,15 @@
         color: asColorArray(props.legendMarkerSymbolMap[kingdom].color),
       })
     )
+    // Hacky exception to add color to 'cross' stroke
+    if (kingdom === 'protista') {
+      shape.setStroke(
+        new Stroke({
+          color: asColorArray(props.legendMarkerSymbolMap[kingdom].color),
+          width: 4,
+        })
+      )
+    }
 
     return shape
   }
@@ -248,13 +268,13 @@
           }
         }
 
-        // Data Link
-        const path = geoJsonProps['path_aux_pop'].split('populations_files/')
-        if (path.length > 1) {
-          popupContent.innerHTML += `<p><b>Data Link</b>: <a target="_blank" href="https://s3-zh.os.switch.ch/gendib/data/auxiliary_populations/${path[1]}">Link</a></p>`
-        } else {
-          popupContent.innerHTML += '<p><b>Data Link</b>: None</p>'
-        }
+        // // Data Link
+        // const path = geoJsonProps['path_aux_pop'].split('populations_files/')
+        // if (path.length > 1) {
+        //   popupContent.innerHTML += `<p><b>Data Link</b>: <a target="_blank" href="https://s3-zh.os.switch.ch/gendib/data/auxiliary_populations/${path[1]}">Link</a></p>`
+        // } else {
+        //   popupContent.innerHTML += '<p><b>Data Link</b>: None</p>'
+        // }
 
         const coordinate = event.coordinate
         popupOverlay?.setPosition(coordinate)
@@ -342,6 +362,13 @@
         })
       }
     }
+  }
+
+  function zoomMap(increment: number) {
+    map.getView().animate({
+      zoom: map.getView().getZoom() + increment,
+      duration: 250,
+    })
   }
 
   onMounted(() => {

@@ -1,41 +1,26 @@
 <template>
   <q-page>
     <div class="absolute-full">
-      <div class="row" style="height: 65%; width: 100%">
-        <MapOpenLayers
-          :fill-div="true"
-          :base-map-url="baseMapUrl"
-          :geo-json-array="filteredData"
-          :draw-enabled="mapDrawEnabled"
-          @draw-shape="
+      <MapOpenLayers
+        :fill-div="true"
+        :base-map-url="baseMapUrl"
+        :geo-json-array="filteredData"
+        :draw-enabled="mapDrawEnabled"
+        @draw-shape="
             (shape: Array<number> | null) => {
               filterPolygon = shape
             }
           "
-          @legend-item-selected="
+        @legend-item-selected="
             (selection: string) => {
               filterSelections['species_kingdom'] = selection
             }
           "
-          :legend-id-name-map="speciesKingdomNameMap"
-          :legend-marker-symbol-map="speciesKingdomSymbolMap"
-          :primary-color="quasarColor('primary')"
-          :secondary-color="quasarColor('secondary')"
-          :accent-color="quasarColor('accent')" />
-      </div>
-
-      <div class="row" style="height: 35%; width: 100%">
-        <q-card bordered style="height: 35%; width: 100%">
-          <DataTable
-            :data="tableData"
-            @row-selected="
-              (row) => {
-                dataRowSelected = row
-              }
-            "
-            :export-selection-label="t(`table.export`)" />
-        </q-card>
-      </div>
+        :legend-id-name-map="speciesKingdomNameMap"
+        :legend-marker-symbol-map="speciesKingdomSymbolMap"
+        :primary-color="quasarColor('primary')"
+        :secondary-color="quasarColor('secondary')"
+        :accent-color="quasarColor('accent')" />
     </div>
 
     <q-page-sticky position="top-left" :offset="[20, 20]">
@@ -60,6 +45,43 @@
         </div>
       </div>
     </q-page-sticky>
+
+    <q-footer style="height: 40%" v-model="dataTableOpen" elevated>
+      <q-card bordered>
+        <DataTable
+          :data="tableData"
+          @row-selected="
+            (row) => {
+              dataRowSelected = row
+            }
+          "
+          :export-selection-label="t(`table.export`)" />
+      </q-card>
+    </q-footer>
+
+    <q-page-sticky position="bottom-left">
+      <q-btn
+        :icon="dataTableToggleIcon"
+        color="primary"
+        @click="
+          ;(dataTableOpen = !dataTableOpen),
+            (dataTableToggleIcon =
+              dataTableToggleIcon === 'expand_more' ? 'expand_less' : 'expand_more')
+        "
+        aria-label="Open Data Table" />
+    </q-page-sticky>
+
+    <q-page-sticky position="bottom-left">
+      <q-btn
+        :icon="dataTableToggleIcon"
+        color="primary"
+        @click="
+          ;(dataTableOpen = !dataTableOpen),
+            (dataTableToggleIcon =
+              dataTableToggleIcon === 'expand_more' ? 'expand_less' : 'expand_more')
+        "
+        aria-label="Open Data Table" />
+    </q-page-sticky>
   </q-page>
 </template>
 
@@ -82,10 +104,11 @@
   const { getPaletteColor: quasarColor } = colors
   const { t } = useI18n()
   const generalStore = useGeneralStore()
-  const { baseMapUrl } = storeToRefs(generalStore)
+  const { baseMapUrl, dataTableOpen } = storeToRefs(generalStore)
 
   const mapDrawEnabled = $ref<boolean>(false)
   const filterPolygon = $ref<Array<number> | null>()
+  const dataTableToggleIcon = $ref<string>('expand_less')
 
   let data = $ref<Array<GeoJSONFeature>>([])
   const filterSelections = $ref<KeyValuePair>({
@@ -173,24 +196,24 @@
 
   const speciesKingdomSymbolMap = {
     plant: {
-      symbol: 'circle1',
-      color: '#01a425',
+      symbol: 'circle',
+      color: '#537A29',
     },
     protista: {
-      symbol: 'circle2',
-      color: '#ffdd00',
+      symbol: 'cross',
+      color: '#219EBC',
     },
     vertebrate: {
       symbol: 'square',
-      color: '#0c0ceb',
+      color: '#FFBF1F',
     },
     fungi: {
       symbol: 'triangle',
-      color: '#a700a2',
+      color: '#023047',
     },
     invertebrate: {
       symbol: 'diamond',
-      color: '#47dae7',
+      color: '#C1121F',
     },
   }
   const speciesKingdomNameMap = {
